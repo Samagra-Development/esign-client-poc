@@ -10,6 +10,7 @@ function Home() {
     const refNumber = useRef('');
     const [modal, showModal] = useState(false);
     const [response, setResponse] = useState({});
+    const [aadhaar, setAadhaar] = useState('');
     const [name, setName] = useState('');
     const [file, setFile] = useState(null);
     const [signedFile, setSignedFile] = useState(null);
@@ -39,12 +40,36 @@ function Home() {
               `, {});
             console.log("DATA -->", dbRes.data)
             if (dbRes?.data?.data?.esign_poc?.length) {
-                setResponse(dbRes?.data?.data?.esign_poc?.[0]);
-                showModal(false);
-                let fileBlob = converBase64toBlob(dbRes?.data?.data?.esign_poc?.[0].signed_data, 'application/pdf');
-                var blobURL = URL.createObjectURL(fileBlob);
-                setSignedFile(blobURL);
-                clearInterval(pollInterval);
+                if (dbRes?.data?.data?.esign_poc?.[0].status != 'Failure') {
+
+                    // Checking if signed using correct Aadhaar
+                    let signData = await axios.get(`https://demosignergateway.emsigner.com/api/GetCertificatedata?Authtoken=fb896a7b-1b4f-42b3-b9e5-22943cc5972e&Transactionnumber=${dbRes?.data?.data?.esign_poc?.[0].status.transaction_number}&Referencenumber=${dbRes?.data?.data?.esign_poc?.[0].status.ref_number}`)
+                    console.log("SIGN DATA --->", signData?.data?.Value)
+
+                    // Comparing last 4 digits of aadhaar
+                    if (aadhaar.slice(8) == signData?.data?.Value?.LastFourDigitsofAadhar) {
+                        setResponse(dbRes?.data?.data?.esign_poc?.[0]);
+                        showModal(false);
+                        let fileBlob = converBase64toBlob(dbRes?.data?.data?.esign_poc?.[0].signed_data, 'application/pdf');
+                        var blobURL = URL.createObjectURL(fileBlob);
+                        setSignedFile(blobURL);
+                        clearInterval(pollInterval);
+                    } else {
+                        // If Document is signed using some other Adhaar
+                        setResponse({
+                            status: 'Failure',
+                            error_message: 'Please sign the document using your Aadhaar only',
+                            ref_number: dbRes?.data?.data?.esign_poc?.[0].ref_number,
+                            transaction_number: dbRes?.data?.data?.esign_poc?.[0].transaction_number
+                        })
+                        showModal(false);
+                        clearInterval(pollInterval);
+                    }
+                } else {
+                    setResponse(dbRes?.data?.data?.esign_poc?.[0]);
+                    showModal(false);
+                    clearInterval(pollInterval);
+                }
             }
         }, 5000)
 
@@ -90,9 +115,10 @@ function Home() {
         <div className="App">
             <div className='title'>E-Sign POC</div>
             {Object.keys(response)?.length == 0 && <div className='formInput'>
+                <div>Aadhaar <input type={"text"} placeholder="Aadhaar Number" onChange={e => setAadhaar(e.target.value)} value={aadhaar} /></div>
                 <div>Name <input type={"text"} placeholder="Your Name" onChange={e => setName(e.target.value)} value={name} /></div>
                 <div>Document <input type={"file"} accept="application/pdf" onChange={handleFileUpload} /></div>
-                {name && file && <form action={`${process.env.REACT_APP_ESIGN_GATEWAY_URL}`} target='_blank' id="frmdata" method="post" >
+                {aadhaar?.length == 12 && name && file && <form action={`${process.env.REACT_APP_ESIGN_GATEWAY_URL}`} target='_blank' id="frmdata" method="post" >
                     <input id="Name" name="Name" type="hidden" value={name} />
                     <input id="FileType" name="FileType" type="hidden" value="PDF" />
                     <input id="File" name="File" type="hidden" value={file} />
