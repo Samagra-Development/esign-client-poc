@@ -43,7 +43,7 @@ function Home() {
                 if (dbRes?.data?.data?.esign_poc?.[0].status != 'Failure') {
 
                     // Checking if signed using correct Aadhaar
-                    let signData = await axios.get(`https://demosignergateway.emsigner.com/api/GetCertificatedata?Authtoken=fb896a7b-1b4f-42b3-b9e5-22943cc5972e&Transactionnumber=${dbRes?.data?.data?.esign_poc?.[0].status.transaction_number}&Referencenumber=${dbRes?.data?.data?.esign_poc?.[0].status.ref_number}`)
+                    let signData = await axios.get(`https://demosignergateway.emsigner.com/api/GetCertificatedata?Authtoken=fb896a7b-1b4f-42b3-b9e5-22943cc5972e&Transactionnumber=${dbRes?.data?.data?.esign_poc?.[0].transaction_number}&Referencenumber=${dbRes?.data?.data?.esign_poc?.[0].ref_number}`)
                     console.log("SIGN DATA --->", signData?.data?.Value)
 
                     // Comparing last 4 digits of aadhaar
